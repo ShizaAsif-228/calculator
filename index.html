@@ -1,0 +1,306 @@
+<!-- Neon Calculator: single-file HTML with embedded CSS and JS
+     Features:
+     - Neon UI (dark background, glowing accents)
+     - Smooth button animations and press feedback
+     - Basic mathematical functions: + - * / % . = clear backspace
+     - Keyboard support (0-9, + - * / Enter, Backspace, .)
+     - Visual feedback: button glow, operator highlight, small history line
+     - Responsive layout
+-->
+
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Neon Calculator</title>
+  <style>
+    :root{
+      --bg:#0b0f14;
+      --panel:#071018;
+      --accent:#7c5cff; /* primary neon */
+      --accent-2:#00ffd5; /* secondary neon */
+      --muted:rgba(255,255,255,0.12);
+      --glass: rgba(255,255,255,0.03);
+      --radius:16px;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      background: radial-gradient(1200px 600px at 10% 10%, rgba(124,92,255,0.06), transparent 6%),
+                  radial-gradient(900px 500px at 90% 90%, rgba(0,255,213,0.03), transparent 6%),
+                  var(--bg);
+      display:flex;align-items:center;justify-content:center;
+      color:#eaf0ff;
+      -webkit-font-smoothing:antialiased;
+      -moz-osx-font-smoothing:grayscale;
+      padding:32px;
+    }
+
+    .calc-wrap{
+      width:360px;max-width:94vw;
+      background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+      border-radius:20px;padding:18px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.02);
+      border:1px solid rgba(124,92,255,0.08);
+      position:relative;overflow:hidden;
+      backdrop-filter: blur(6px);
+    }
+
+    /* glow strip */
+    .calc-wrap::before{
+      content:'';position:absolute;inset:0;pointer-events:none;
+      background:linear-gradient(90deg, rgba(124,92,255,0.06), rgba(0,255,213,0.03));
+      mix-blend-mode:screen;opacity:0.8;filter:blur(30px);
+      transform:translateY(-50%);
+    }
+
+    .brand{
+      display:flex;gap:12px;align-items:center;margin-bottom:8px;
+    }
+    .logo{
+      width:44px;height:44px;border-radius:10px;background:linear-gradient(135deg,var(--accent),var(--accent-2));
+      box-shadow:0 6px 22px rgba(124,92,255,0.18), 0 0 28px rgba(0,255,213,0.06);
+      display:flex;align-items:center;justify-content:center;font-weight:700;color:#041018;
+      font-size:18px;letter-spacing:0.6px
+    }
+    .title{font-size:15px;font-weight:600}
+    .subtitle{font-size:11px;color:var(--muted);margin-top:-2px}
+
+    .screen{
+      margin-top:12px;padding:14px;border-radius:12px;background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.005));
+      border:1px solid rgba(255,255,255,0.02);
+      min-height:84px;display:flex;flex-direction:column;justify-content:center;gap:8px;
+      box-shadow: inset 0 -8px 40px rgba(0,0,0,0.6);
+    }
+    .history{
+      font-size:12px;color:rgba(234,240,255,0.55);opacity:0.9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-right:6px
+    }
+    .display{
+      font-size:28px;font-weight:700;text-align:right;letter-spacing:0.6px;padding-right:6px
+    }
+
+    /* keypad */
+    .keys{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:14px}
+    button.key{
+      background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+      border-radius:12px;padding:16px;font-size:18px;border:none;cursor:pointer;outline:none;
+      color:inherit;font-weight:600;backdrop-filter: blur(3px);
+      box-shadow: 0 6px 18px rgba(2,6,23,0.6), 0 0 18px rgba(124,92,255,0.02) inset;
+      transition: transform 140ms cubic-bezier(.2,.9,.2,1), box-shadow 160ms, filter 160ms;
+      position:relative;overflow:visible
+    }
+    button.key:active{transform:translateY(3px) scale(0.995)}
+
+    /* neon glow for accent keys */
+    .key.operator{
+      background: linear-gradient(180deg, rgba(124,92,255,0.12), rgba(0,255,213,0.02));
+      box-shadow: 0 6px 24px rgba(124,92,255,0.12), 0 0 20px rgba(124,92,255,0.12);
+    }
+    .key.equal{
+      background: linear-gradient(180deg, var(--accent), var(--accent-2));
+      color:#041018; font-weight:800; font-size:18px;
+      box-shadow: 0 8px 28px rgba(124,92,255,0.18), 0 0 36px rgba(0,255,213,0.08);
+      grid-column: span 2;
+    }
+    .key.wide{grid-column:span 2}
+
+    /* subtle hover glow */
+    button.key:hover{
+      filter:brightness(1.06) saturate(1.05);
+      transform:translateY(-4px) scale(1.01);
+    }
+
+    /* inner small neon line on buttons */
+    button.key::after{
+      content:'';position:absolute;inset:0;border-radius:12px;pointer-events:none;opacity:0;transition:opacity 180ms;
+      box-shadow:0 0 18px rgba(124,92,255,0.06);
+    }
+    button.key:hover::after{opacity:1}
+
+    /* different tint for func keys */
+    .key.clear{color:#ffdddd}
+    .key.back{color:#ffd8b8}
+
+    /* tiny indicator line */
+    .indicator{height:6px;border-radius:6px;background:linear-gradient(90deg,var(--accent),var(--accent-2));margin-top:12px;opacity:0.9}
+
+    /* responsive smaller screens */
+    @media (max-width:420px){
+      .display{font-size:24px}
+      button.key{padding:12px;font-size:16px}
+    }
+
+    /* keyboard focus styles */
+    button.key:focus{box-shadow:0 0 0 4px rgba(124,92,255,0.08);}
+  </style>
+</head>
+<body>
+  <main class="calc-wrap" aria-label="Neon Calculator">
+    <div class="brand">
+      <div class="logo">NX</div>
+      <div>
+        <div class="title">NeonCalc</div>
+        <div class="subtitle">Stylish - Smooth - Responsive</div>
+      </div>
+    </div>
+
+    <section class="screen" role="region" aria-live="polite">
+      <div class="history" id="history">&nbsp;</div>
+      <div class="display" id="display">0</div>
+    </section>
+
+    <div class="keys" role="group" aria-label="calculator keys">
+      <button class="key clear" data-action="clear">C</button>
+      <button class="key back" data-action="back">⌫</button>
+      <button class="key operator" data-value="%">%</button>
+      <button class="key operator" data-value="/">÷</button>
+
+      <button class="key" data-value="7">7</button>
+      <button class="key" data-value="8">8</button>
+      <button class="key" data-value="9">9</button>
+      <button class="key operator" data-value="*">×</button>
+
+      <button class="key" data-value="4">4</button>
+      <button class="key" data-value="5">5</button>
+      <button class="key" data-value="6">6</button>
+      <button class="key operator" data-value="-">−</button>
+
+      <button class="key" data-value="1">1</button>
+      <button class="key" data-value="2">2</button>
+      <button class="key" data-value="3">3</button>
+      <button class="key operator" data-value="+">+</button>
+
+      <button class="key" data-value="0" class="wide">0</button>
+      <button class="key" data-value=".">.</button>
+      <button class="key equal wide" data-action="equals">=</button>
+    </div>
+
+    <div class="indicator" aria-hidden="true"></div>
+  </main>
+
+  <script>
+    // Neon Calculator JS: tidy, documented
+    (function(){
+      const displayEl = document.getElementById('display');
+      const historyEl = document.getElementById('history');
+      let current = '0';
+      let expression = '';
+      let lastWasOperator = false;
+
+      function updateScreen(){
+        displayEl.textContent = current;
+        historyEl.textContent = expression || '\u00A0';
+      }
+
+      function inputDigit(d){
+        if(lastWasOperator){ current = d; lastWasOperator = false; }
+        else if(current === '0' && d !== '.') current = d;
+        else current = (current + d).slice(0, 24);
+      }
+
+      function inputDot(){
+        if(lastWasOperator){ current = '0.'; lastWasOperator = false; return; }
+        if(!current.includes('.')) current += '.';
+      }
+
+      function applyOperator(op){
+        // normalize displayed operator to JS operator when building expression
+        const jsOp = op;
+        if(expression === '' && current === '') return;
+        if(lastWasOperator){
+          // replace last operator
+          expression = expression.slice(0, -1) + jsOp;
+        } else {
+          expression += (current || '0') + jsOp;
+        }
+        lastWasOperator = true;
+      }
+
+      function clearAll(){ current = '0'; expression = ''; lastWasOperator = false; }
+
+      function backspace(){
+        if(lastWasOperator){
+          // remove last operator
+          expression = expression.slice(0,-1);
+          lastWasOperator = false;
+          current = '0';
+        } else {
+          if(current.length <= 1) current = '0'; else current = current.slice(0,-1);
+        }
+      }
+
+      function computeResult(){
+        try{
+          // build final expression, convert % occurrences: x% -> (x/100)
+          let finalExpr = expression + (lastWasOperator ? '' : current);
+          if(!finalExpr) return;
+
+          // replace unicode operators just in case; (we used js ops though)
+          finalExpr = finalExpr.replace(/÷/g, '/').replace(/×/g, '*').replace(/−/g, '-');
+
+          // handle percentage: convert 'number%' to (number/100)
+          finalExpr = finalExpr.replace(/(\d+(?:\.\d+)?)%/g, '($1/100)');
+
+          // safety: allow only digits, operators, parentheses and dots
+          if(!/^[0-9+\-*/().\s%]+$/.test(finalExpr)) throw new Error('Invalid');
+
+          const result = Function('return ' + finalExpr)(); // safe-enough for this playground
+          if(result === Infinity || Number.isNaN(result)) throw new Error('Math error');
+
+          current = String(Number.isFinite(result) ? +result.toPrecision(12) : result);
+          expression = '';
+          lastWasOperator = false;
+        } catch(e){
+          current = 'Error';
+          expression = '';
+          lastWasOperator = false;
+        }
+      }
+
+      // button handling
+      document.querySelectorAll('button.key').forEach(btn => {
+        btn.addEventListener('click', ()=>{
+          const val = btn.getAttribute('data-value');
+          const action = btn.getAttribute('data-action');
+
+          // visual press glow
+          btn.animate([{boxShadow:'0 6px 18px rgba(2,6,23,0.6), 0 0 18px rgba(124,92,255,0.02) inset'},
+                       {boxShadow:'0 10px 40px rgba(124,92,255,0.14), 0 0 36px rgba(0,255,213,0.05)'}], {duration:260, easing:'cubic-bezier(.2,.9,.2,1)'});
+
+          if(action === 'clear'){
+            clearAll();
+          } else if(action === 'back'){
+            backspace();
+          } else if(action === 'equals'){
+            computeResult();
+          } else if(val){
+            if(/[0-9]/.test(val)) inputDigit(val);
+            else if(val === '.') inputDot();
+            else if(/[+\-*/%]/.test(val)) applyOperator(val);
+          }
+
+          updateScreen();
+          // small accessibility: focus back to calculator
+          displayEl.focus && displayEl.focus();
+        });
+      });
+
+      // keyboard support
+      window.addEventListener('keydown', (e)=>{
+        if(e.key >= '0' && e.key <= '9'){ document.querySelector('[data-value="'+e.key+'"]')?.click(); }
+        else if(e.key === '.') document.querySelector('[data-value="."]')?.click();
+        else if(e.key === 'Enter' || e.key === '=') { e.preventDefault(); document.querySelector('[data-action="equals"]')?.click(); }
+        else if(e.key === 'Backspace') document.querySelector('[data-action="back"]')?.click();
+        else if(e.key === 'Escape') document.querySelector('[data-action="clear"]')?.click();
+        else if(['+','-','/','*','%'].includes(e.key)) document.querySelector('[data-value="'+e.key+'"]')?.click();
+      });
+
+      // init
+      updateScreen();
+    })();
+  </script>
+</body>
+</html>
